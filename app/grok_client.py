@@ -4,7 +4,7 @@ import os
 import httpx
 
 GROK_API_URL = "https://api.x.ai/v1/chat/completions"
-GROK_MODEL = os.getenv("GROK_MODEL", "grok-4-fast")
+GROK_MODEL = os.getenv("GROK_MODEL", "grok-4.6")
 
 SYSTEM_PROMPT = """You are a trusted assistant that helps ordinary people understand \
 confusing or potentially dangerous text - scam messages, medical notes, legal or \
