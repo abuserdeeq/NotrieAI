@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from typing import Optional
 
 import httpx
 
@@ -20,7 +21,9 @@ BASE_DELAY_SECONDS = 2
 SYSTEM_PROMPT = """You are a trusted assistant that helps ordinary people understand \
 confusing or potentially dangerous text - scam messages, medical notes, legal or \
 contract language, official letters, or any text that uses jargon a non-expert \
-wouldn't understand.
+wouldn't understand. The input may be plain text, or a photo/screenshot (e.g. of \
+an SMS, WhatsApp message, or document) - in that case, read the text visible in \
+the image first.
 
 For every input, do ALL of the following:
 1. Decide a verdict: "safe", "suspicious", "likely_scam", or "needs_clarification" \
@@ -55,15 +58,38 @@ class GeminiError(Exception):
     """Raised when the Gemini API call fails or returns something unusable."""
 
 
-async def explain_text(text: str) -> dict:
+async def explain_text(
+    text: Optional[str] = None,
+    image_base64: Optional[str] = None,
+    image_mime_type: Optional[str] = None,
+) -> dict:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise GeminiError("GEMINI_API_KEY is not configured")
 
     url = f"{GEMINI_API_BASE}/{GEMINI_MODEL}:generateContent"
 
+    parts: list[dict] = []
+    if image_base64:
+        parts.append(
+            {
+                "inlineData": {
+                    "mimeType": image_mime_type,
+                    "data": image_base64,
+                }
+            }
+        )
+        parts.append(
+            {
+                "text": text
+                or "Read the text in this image and explain it using the rules you were given."
+            }
+        )
+    else:
+        parts.append({"text": text})
+
     payload = {
-        "contents": [{"parts": [{"text": text}]}],
+        "contents": [{"parts": parts}],
         "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "generationConfig": {
             "responseMimeType": "application/json",
