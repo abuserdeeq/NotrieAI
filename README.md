@@ -1,4 +1,4 @@
-# Rotryai Explain API (Python/FastAPI)
+# NotrieAI Explain API (Python/FastAPI)
 
 Paste any confusing or potentially dangerous text (scam message, medical
 note, legal/contract language, official letter) or upload a photo/screenshot
@@ -23,7 +23,11 @@ Settings page (stored in `app_settings` in the database, keys
 - `GET /api/health` — health check (no auth)
 - `POST /api/auth/signup` — body: `{ "email": "...", "password": "..." }` (password min 8 chars). Returns a JWT + user info. If `email` matches the `ADMIN_EMAIL` env var (case-insensitive), the new account is created as admin automatically.
 - `POST /api/auth/login` — body: `{ "email": "...", "password": "..." }`. Returns a JWT + user info.
-- `POST /api/explain` — **requires** `Authorization: Bearer <token>` header. Body: `{ "text": "..." }` (20–30,000 characters) and/or `{ "image_base64": "...", "image_mime_type": "..." }`
+- `POST /api/explain` — **requires** `Authorization: Bearer <token>` header. Body: `{ "text": "..." }` (20–30,000 characters) and/or `{ "image_base64": "...", "image_mime_type": "..." }`. On success, also saves a row to that user's history (see below).
+- `GET /api/history` — **requires auth**. This user's saved analyses, newest first (id, verdict, summary, a short input preview, whether it had an image, created_at). Only ever returns the current user's own rows.
+- `GET /api/history/{history_id}` — **requires auth**. Full detail for one saved analysis (same shape as `/api/explain`'s response, plus id/created_at). 404 if it doesn't exist or isn't owned by the requesting user.
+- `DELETE /api/history/{history_id}` — **requires auth**. Deletes one saved analysis. 404 if it doesn't exist or isn't owned by the requesting user.
+- `DELETE /api/history` — **requires auth**. Deletes every saved analysis for the requesting user.
 - `GET /api/settings/public` — no auth. Returns only keys prefixed `theme_`, `site_`, or `brand_` (for the login/signup screens, before a user has a token).
 - `GET /api/admin/settings` — **admin only**. Returns every key in `app_settings`.
 - `PUT /api/admin/settings` — **admin only**. Body: `{ "key": "value", ... }` — upserts any number of keys at once. There is no fixed list of allowed keys: any setting (a new color, a new toggle, a new piece of copy) can be introduced from the admin UI with no backend code change.
@@ -102,6 +106,6 @@ curl -X POST http://localhost:8000/api/explain \
 
 ## Frontend
 
-The existing React frontend (Rotryai) can point its API base URL at
+The existing React frontend (NotrieAI) can point its API base URL at
 this service once deployed — no UI/CSS changes needed, only the
 request/response contract above.
