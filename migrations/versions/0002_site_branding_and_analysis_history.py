@@ -26,7 +26,7 @@ def upgrade() -> None:
     op.bulk_insert(
         settings,
         [
-            {"key": "site_name", "value": "NotrieAI"},
+            {"key": "site_name", "value": "Rotryai"},
             {"key": "site_tagline", "value": "Understand anything in seconds."},
         ],
     )
