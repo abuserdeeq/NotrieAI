@@ -13,7 +13,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-app = FastAPI(title="NotrieAI Explain API")
+app = FastAPI(title="Rotryai Explain API")
 
 # Comma-separated list of allowed frontend origins, e.g.:
 # ALLOWED_ORIGINS=https://notrieai-frontend.onrender.com,https://notrieai.com
