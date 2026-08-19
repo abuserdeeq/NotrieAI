@@ -1,4 +1,4 @@
-# NotrieAI Explain API (Python/FastAPI)
+# Rotryai Explain API (Python/FastAPI)
 
 Paste any confusing or potentially dangerous text (scam message, medical
 note, legal/contract language, official letter) or upload a photo/screenshot
@@ -102,6 +102,6 @@ curl -X POST http://localhost:8000/api/explain \
 
 ## Frontend
 
-The existing React frontend (NotrieAI) can point its API base URL at
+The existing React frontend (Rotryai) can point its API base URL at
 this service once deployed — no UI/CSS changes needed, only the
 request/response contract above.
