@@ -77,3 +77,11 @@ class UserAdminOut(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     is_admin: bool
+
+
+class AnalysisHistoryOut(BaseModel):
+    id: UUID
+    input_type: Literal["text", "image"]
+    input_text: Optional[str] = None
+    result: ExplainResponse
+    created_at: datetime
