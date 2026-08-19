@@ -10,6 +10,10 @@ from app.models import AppSetting
 DEFAULTS = {
     "provider_openai_enabled": "true",
     "provider_gemini_enabled": "true",
+    # Mirrors the seed values in migrations/versions/0002_site_branding.py -
+    # used if that migration hasn't run yet, or the key was deleted.
+    "site_name": "NotrieAI",
+    "site_tagline": "Understanding should not be a privilege.",
 }
 
 

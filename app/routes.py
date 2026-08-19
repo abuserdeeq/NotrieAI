@@ -1,9 +1,8 @@
 import json
 import logging
-from typing import Dict, List
-from uuid import UUID
+from typing import Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,7 +10,7 @@ from app.database import get_db
 from app.models import AnalysisHistory, AppSetting, User
 from app.providers import NoProviderAvailable
 from app.providers import explain as provider_explain
-from app.schemas import AnalysisHistoryOut, ExplainRequest, ExplainResponse
+from app.schemas import ExplainRequest, ExplainResponse
 from app.security import get_current_user
 
 logger = logging.getLogger("notrieai")
@@ -40,6 +39,43 @@ async def get_public_settings(db: AsyncSession = Depends(get_db)):
     }
 
 
+async def _save_history(
+    db: AsyncSession,
+    *,
+    user_id,
+    payload: ExplainRequest,
+    result: dict,
+) -> None:
+    """Best-effort: saves the result to the user's History. A failure here
+    (bad JSON shape, a transient DB hiccup, etc.) is logged and swallowed
+    rather than turning a successful analysis into a 500 for the user -
+    losing the history entry is far better than losing the answer they
+    were waiting for. The raw input text/image is never stored, only a
+    short preview of the text (if any)."""
+    try:
+        preview = None
+        if payload.text:
+            stripped = payload.text.strip()
+            preview = (stripped[:200] + "…") if len(stripped) > 200 else stripped
+        db.add(
+            AnalysisHistory(
+                user_id=user_id,
+                verdict=result["verdict"],
+                verdict_reason=result["verdict_reason"],
+                summary=result["summary"],
+                key_points=json.dumps(result["key_points"]),
+                confusing_terms=json.dumps(result["confusing_terms"]),
+                what_you_should_do=json.dumps(result["what_you_should_do"]),
+                input_preview=preview,
+                had_image=bool(payload.image_base64),
+            )
+        )
+        await db.commit()
+    except Exception:
+        logger.exception("Failed to save analysis to history (non-fatal)")
+        await db.rollback()
+
+
 @router.post("/explain", response_model=ExplainResponse)
 async def explain(
     payload: ExplainRequest,
@@ -53,19 +89,8 @@ async def explain(
             image_base64=payload.image_base64,
             image_mime_type=payload.image_mime_type,
         )
-        response = ExplainResponse(**result)
-
-        # Keep the completed analysis available to this user. Images are not
-        # stored; the result and any accompanying text are enough to reopen it.
-        history = AnalysisHistory(
-            user_id=current_user.id,
-            input_type="image" if payload.image_base64 else "text",
-            input_text=payload.text.strip() if payload.text else None,
-            result_json=response.model_dump_json(),
-        )
-        db.add(history)
-        await db.commit()
-        return response
+        await _save_history(db, user_id=current_user.id, payload=payload, result=result)
+        return ExplainResponse(**result)
     except NoProviderAvailable as exc:
         logger.exception("All enabled AI providers failed (or none enabled)")
         detail = (
@@ -81,69 +106,3 @@ async def explain(
             status_code=500,
             detail="Something went wrong while processing that request.",
         ) from exc
-
-
-@router.get("/history", response_model=List[AnalysisHistoryOut])
-async def list_history(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(AnalysisHistory)
-        .where(AnalysisHistory.user_id == current_user.id)
-        .order_by(AnalysisHistory.created_at.desc())
-    )
-    return [
-        AnalysisHistoryOut(
-            id=row.id,
-            input_type=row.input_type,
-            input_text=row.input_text,
-            result=ExplainResponse.model_validate(json.loads(row.result_json)),
-            created_at=row.created_at,
-        )
-        for row in result.scalars().all()
-    ]
-
-
-@router.get("/history/{history_id}", response_model=AnalysisHistoryOut)
-async def get_history_item(
-    history_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(AnalysisHistory).where(
-            AnalysisHistory.id == history_id,
-            AnalysisHistory.user_id == current_user.id,
-        )
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Analysis history item not found.")
-    return AnalysisHistoryOut(
-        id=row.id,
-        input_type=row.input_type,
-        input_text=row.input_text,
-        result=ExplainResponse.model_validate(json.loads(row.result_json)),
-        created_at=row.created_at,
-    )
-
-
-@router.delete("/history/{history_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_history_item(
-    history_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(AnalysisHistory).where(
-            AnalysisHistory.id == history_id,
-            AnalysisHistory.user_id == current_user.id,
-        )
-    )
-    row = result.scalar_one_or_none()
-    if row is None:
-        raise HTTPException(status_code=404, detail="Analysis history item not found.")
-    await db.delete(row)
-    await db.commit()
-    return None

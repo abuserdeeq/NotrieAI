@@ -40,17 +40,31 @@ class AppSetting(Base):
 
 
 class AnalysisHistory(Base):
-    """A user's completed analysis history. The AI result is stored as JSON
-    text so users can reopen past analyses without re-running the provider."""
+    """One saved /explain result, tied to the user who ran it. Powers the
+    History panel in the frontend (view past analyses, or delete them).
+    List and detail fields both list here; list_points/confusing_terms/
+    what_you_should_do are stored as JSON-encoded text since they're
+    lists/objects, matching the flexible-text approach used elsewhere
+    (see AppSetting.value)."""
+
     __tablename__ = "analysis_history"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    input_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    input_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    result_json: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    verdict: Mapped[str] = mapped_column(String(30), nullable=False)
+    verdict_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    key_points: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list[str]
+    confusing_terms: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list[{term, explanation}]
+    what_you_should_do: Mapped[str] = mapped_column(Text, nullable=False)  # JSON list[str]
+    # Short preview of the input text for the history list (None for
+    # image-only submissions). The full input text/image is never stored.
+    input_preview: Mapped[str | None] = mapped_column(String(220), nullable=True)
+    had_image: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, index=True
+    )

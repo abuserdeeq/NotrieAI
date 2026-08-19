@@ -42,6 +42,36 @@ class ExplainResponse(BaseModel):
     what_you_should_do: List[str]
 
 
+class HistoryItemOut(BaseModel):
+    """One row for the History list - just enough to identify and preview
+    an entry without shipping the full result over the wire."""
+
+    id: UUID
+    verdict: Literal["safe", "suspicious", "likely_scam", "needs_clarification"]
+    summary: str
+    input_preview: Optional[str] = None
+    had_image: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class HistoryDetailOut(BaseModel):
+    """A single saved analysis, in full - same shape as ExplainResponse so
+    the frontend can reuse its existing result view."""
+
+    id: UUID
+    verdict: Literal["safe", "suspicious", "likely_scam", "needs_clarification"]
+    verdict_reason: str
+    summary: str
+    key_points: List[str]
+    confusing_terms: List[ConfusingTerm]
+    what_you_should_do: List[str]
+    input_preview: Optional[str] = None
+    had_image: bool
+    created_at: datetime
+
+
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
@@ -77,11 +107,3 @@ class UserAdminOut(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     is_admin: bool
-
-
-class AnalysisHistoryOut(BaseModel):
-    id: UUID
-    input_type: Literal["text", "image"]
-    input_text: Optional[str] = None
-    result: ExplainResponse
-    created_at: datetime
