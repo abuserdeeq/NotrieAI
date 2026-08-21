@@ -104,3 +104,12 @@ class AnalysisHistoryOut(BaseModel):
     input_text: Optional[str] = None
     result: ExplainResponse
     created_at: datetime
+
+
+class UsageOut(BaseModel):
+    daily_used: int
+    daily_limit: int
+    daily_remaining: int
+    monthly_used: int
+    monthly_limit: int
+    monthly_remaining: int

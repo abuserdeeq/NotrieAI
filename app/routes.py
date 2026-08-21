@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import AnalysisHistory, AppSetting, User
 from app.providers import NoProviderAvailable
+from app.quota import consume_analysis, get_usage
 from app.providers import explain as provider_explain
 from app.rate_limit import limiter, user_or_ip_key
-from app.schemas import AnalysisHistoryOut, ExplainRequest, ExplainResponse
+from app.schemas import AnalysisHistoryOut, ExplainRequest, ExplainResponse, UsageOut
 from app.security import get_current_user
 
 logger = logging.getLogger("notrieai")
@@ -50,6 +51,10 @@ async def explain(
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        # Reserve the quota before the paid AI call. The same DB transaction
+        # is committed with the completed history below; failures roll it back.
+        await consume_analysis(db, current_user.id)
+
         result = await provider_explain(
             db,
             text=payload.text,
@@ -84,6 +89,14 @@ async def explain(
             status_code=500,
             detail="Something went wrong while processing that request.",
         ) from exc
+
+
+@router.get("/usage", response_model=UsageOut)
+async def usage(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_usage(db, current_user.id)
 
 
 @router.get("/history", response_model=List[AnalysisHistoryOut])

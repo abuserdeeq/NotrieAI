@@ -10,6 +10,9 @@ from app.models import AppSetting
 DEFAULTS = {
     "provider_openai_enabled": "true",
     "provider_gemini_enabled": "true",
+    # Free-tier AI analysis quota. Admin can change these in Settings.
+    "quota_daily_analyses": "10",
+    "quota_monthly_analyses": "300",
 }
 
 
