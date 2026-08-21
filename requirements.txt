@@ -11,3 +11,4 @@ pyjwt>=2.9.0
 email-validator>=2.2.0
 slowapi>=0.1.9
 google-auth>=2.35.0
+requests>=2.32.0
