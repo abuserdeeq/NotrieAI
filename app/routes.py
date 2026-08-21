@@ -3,7 +3,7 @@ import logging
 from typing import Dict, List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import AnalysisHistory, AppSetting, User
 from app.providers import NoProviderAvailable
 from app.providers import explain as provider_explain
+from app.rate_limit import limiter, user_or_ip_key
 from app.schemas import AnalysisHistoryOut, ExplainRequest, ExplainResponse
 from app.security import get_current_user
 
@@ -41,7 +42,9 @@ async def get_public_settings(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/explain", response_model=ExplainResponse)
+@limiter.limit("5/minute;20/hour", key_func=user_or_ip_key)
 async def explain(
+    request: Request,
     payload: ExplainRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

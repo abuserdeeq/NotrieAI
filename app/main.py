@@ -3,9 +3,13 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.admin_routes import router as admin_router
 from app.auth_routes import router as auth_router
+from app.rate_limit import limiter
 from app.routes import router
 
 logging.basicConfig(
@@ -14,6 +18,13 @@ logging.basicConfig(
 )
 
 app = FastAPI(title="Rotryai Explain API")
+
+# Rate limiting - protects /auth/login and /auth/signup from brute-force
+# and spam signups, and /api/explain from being hammered (each call costs
+# real money via the OpenAI/Gemini API). See app/rate_limit.py.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # Comma-separated list of allowed frontend origins, e.g.:
 # ALLOWED_ORIGINS=https://notrieai-frontend.onrender.com,https://notrieai.com
